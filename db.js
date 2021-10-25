@@ -4,6 +4,7 @@ const config = {
   logging: false
 };
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
 if(process.env.LOGGING){
   delete config.logging;
@@ -15,19 +16,25 @@ const User = conn.define('user', {
   password: STRING
 });
 
+User.beforeCreate(async (user) => {
+  const hashedPassword = await bcrypt.hash(user.password, 10);
+  user.password = hashedPassword;
+})
+
 User.byToken = async(token)=> {
   try {
-    const user = await User.findByPk(token);
+    const verified = jwt.verify(token, process.env.JWT);
+    const user = await User.findByPk(verified.userId);
     if(user){
       return user;
     }
     const error = Error('bad credentials');
-    error.status = 401;
+    error.status = 402;
     throw error;
   }
   catch(ex){
     const error = Error('bad credentials');
-    error.status = 401;
+    error.status = 403;
     throw error;
   }
 };
@@ -35,12 +42,15 @@ User.byToken = async(token)=> {
 User.authenticate = async({ username, password })=> {
   const user = await User.findOne({
     where: {
-      username,
-      password
+      username
     }
   });
+  
   if(user){
-    return { user: jwt.sign( { userId: user.id }, process.env.jwt)}; 
+    const match = await bcrypt.compare(password, user.password);
+    if (match){
+      return jwt.sign( { userId: user.id }, process.env.JWT);
+    }
   }
   const error = Error('bad credentials');
   error.status = 401;
