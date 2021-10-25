@@ -48,15 +48,28 @@
       constructor(){
         super();
         this.state = {
-          auth: {}
+          auth: {},
+          notes: []
         };
         this.signIn = this.signIn.bind(this);
         this.logout = this.logout.bind(this);
+        this.getNotes = this.getNotes.bind(this);
       }
+      
       logout(){
         window.localStorage.removeItem('token');
         this.setState({ auth: {}});
       }
+      
+      async getNotes(){
+          const notes = await axios.get(`/api/${this.state.auth.id}/notes`, {
+              headers: {
+                  authorization: window.localStorage.getItem('token')
+              }
+          });
+          this.setState({ notes: notes})
+      }
+      
       async attemptTokenLogin(){
         const token = window.localStorage.getItem('token');
         if(token){
@@ -68,16 +81,21 @@
           this.setState({ auth: response.data });
         }
       }
-      componentDidMount(){
-        this.attemptTokenLogin();
+      
+      async componentDidMount(){
+        await this.attemptTokenLogin();
+        this.getNotes(); 
       }
+      
       async signIn(credentials){
         let response = await axios.post('/api/auth', credentials);
         const { token } = response.data;
         window.localStorage.setItem('token', token);
         this.attemptTokenLogin();
       }
+      
       render(){
+        console.log(this.state)
         const { auth } = this.state;
         const { signIn, logout } = this;
         if(!auth.id){
@@ -86,8 +104,19 @@
         else {
           return (
             <div>
+            <div>
               Welcome { auth.username }
               <button onClick={ logout }>Logout</button>
+            </div>
+            
+            <div>
+              {this.state.notes.length !== 0 ?
+                  this.state.notes.data.map( note => (
+                  <p key={note.id}>{note.text}</p> 
+                )) : 
+                  'No notes'
+              } 
+            </div>
             </div>
           );
         }
