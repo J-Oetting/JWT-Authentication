@@ -3,6 +3,7 @@ const { STRING } = Sequelize;
 const config = {
   logging: false
 };
+const jwt = require('jsonwebtoken');
 
 if(process.env.LOGGING){
   delete config.logging;
@@ -39,7 +40,7 @@ User.authenticate = async({ username, password })=> {
     }
   });
   if(user){
-    return user.id; 
+    return { user: jwt.sign( { userId: user.id }, process.env.jwt)}; 
   }
   const error = Error('bad credentials');
   error.status = 401;
